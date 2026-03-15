@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>会議投票ツール</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Noto Sans JP', sans-serif; color: #1a1a1a; background: #f5f5f3; min-height: 100vh; padding: 24px 16px; }
+
+.container { max-width: 680px; margin: 0 auto; }
+h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+.subtitle { font-size: 13px; color: #6b6b68; margin-bottom: 24px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid #e0ded8; }
+.tab { font-size: 13px; padding: 8px 16px; cursor: pointer; border: none; background: transparent; color: #6b6b68; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color 0.15s; font-family: inherit; }
+.tab.active { color: #1a1a1a; border-bottom-color: #1a1a1a; font-weight: 500; }
+.tab:hover:not(.active) { color: #3d3d3a; }
+
+.card { background: #fff; border: 1px solid #e0ded8; border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+
+.section-label { font-size: 11px; font-weight: 600; color: #9b9990; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+
+label { display: block; font-size: 12px; color: #6b6b68; margin-bottom: 6px; }
+input[type=text], textarea { font-family: inherit; font-size: 13px; padding: 8px 10px; border: 1px solid #e0ded8; border-radius: 8px; background: #fff; color: #1a1a1a; width: 100%; transition: border-color 0.15s; }
+textarea { resize: vertical; line-height: 1.5; }
+input[type=text]:focus, textarea:focus { outline: none; border-color: #888780; }
+
+button { font-family: inherit; font-size: 13px; padding: 8px 16px; border: 1px solid #d3d1c7; border-radius: 8px; background: transparent; color: #1a1a1a; cursor: pointer; transition: background 0.12s; white-space: nowrap; }
+button:hover { background: #f1efe8; }
+button.primary { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
+button.primary:hover { background: #333; }
+button.danger { color: #a32d2d; border-color: #e0ded8; }
+button.danger:hover { background: #fcebeb; }
+
+.agenda-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.agenda-item-admin { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid #e0ded8; border-radius: 8px; background: #fff; }
+.agenda-item-admin .num { font-size: 11px; color: #9b9990; min-width: 20px; }
+.agenda-item-admin .texts { flex: 1; }
+.agenda-item-admin .texts .atitle { font-size: 13px; font-weight: 500; }
+.agenda-item-admin .texts .adesc { font-size: 12px; color: #6b6b68; margin-top: 2px; }
+
+.vote-cards { display: flex; flex-direction: column; gap: 14px; }
+.vote-card { border: 1px solid #e0ded8; border-radius: 12px; background: #fff; overflow: hidden; }
+.vote-card-header { padding: 14px 16px 10px; }
+.vote-card-header .tag { font-size: 11px; color: #9b9990; margin-bottom: 4px; }
+.vote-card-header .card-title { font-size: 15px; font-weight: 600; }
+.vote-card-header .card-desc { font-size: 13px; color: #6b6b68; margin-top: 4px; }
+
+.reason-areas { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid #e0ded8; }
+.reason-box { padding: 10px 12px; }
+.reason-box:first-child { border-right: 1px solid #e0ded8; }
+.reason-box .reason-label { font-size: 11px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+.reason-box.pos-box .reason-label { color: #3b6d11; }
+.reason-box.neg-box .reason-label { color: #a32d2d; }
+.reason-box.pos-box textarea { border-color: #c0dd97; min-height: 60px; }
+.reason-box.pos-box textarea:focus { border-color: #639922; }
+.reason-box.neg-box textarea { border-color: #f7c1c1; min-height: 60px; }
+.reason-box.neg-box textarea:focus { border-color: #e24b4a; }
+
+.vote-buttons { display: flex; border-top: 1px solid #e0ded8; }
+.vote-btn { flex: 1; padding: 12px; border: none; background: transparent; cursor: pointer; font-size: 13px; font-weight: 500; transition: background 0.12s; display: flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit; }
+.vote-btn:first-child { border-right: 1px solid #e0ded8; }
+.vote-btn.pos { color: #3b6d11; }
+.vote-btn.pos:hover { background: #eaf3de; }
+.vote-btn.neg { color: #a32d2d; }
+.vote-btn.neg:hover { background: #fcebeb; }
+.vote-btn.voted-pos { background: #eaf3de; }
+.vote-btn.voted-neg { background: #fcebeb; }
+.vote-done-msg { padding: 8px 16px; font-size: 12px; color: #6b6b68; text-align: center; border-top: 1px solid #e0ded8; background: #f5f5f3; }
+
+.voted-tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 8px; font-weight: 600; }
+.voted-tag.p { background: #eaf3de; color: #3b6d11; }
+.voted-tag.n { background: #fcebeb; color: #a32d2d; }
+
+.results-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.results-header h2 { font-size: 16px; font-weight: 600; }
+.result-cards { display: flex; flex-direction: column; gap: 12px; }
+.result-card { border: 1px solid #e0ded8; border-radius: 12px; background: #fff; padding: 16px; }
+.result-card .rtag { font-size: 11px; color: #9b9990; margin-bottom: 4px; }
+.result-card .rtitle { font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+.bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 12px; }
+.bar-label { width: 80px; color: #6b6b68; }
+.bar-track { flex: 1; height: 8px; background: #f1efe8; border-radius: 4px; overflow: hidden; }
+.bar-fill-pos { height: 100%; background: #639922; border-radius: 4px; transition: width 0.4s; }
+.bar-fill-neg { height: 100%; background: #e24b4a; border-radius: 4px; transition: width 0.4s; }
+.bar-count { width: 28px; text-align: right; color: #6b6b68; font-size: 12px; }
+.total-label { font-size: 11px; color: #9b9990; margin-top: 6px; margin-bottom: 12px; }
+
+.comments-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; border-top: 1px solid #e0ded8; padding-top: 12px; }
+.comments-col .col-header { font-size: 11px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 4px; }
+.comments-col.pos-col .col-header { color: #3b6d11; }
+.comments-col.neg-col .col-header { color: #a32d2d; }
+.comment-item { font-size: 12px; color: #3d3d3a; background: #f5f5f3; border-radius: 6px; padding: 6px 8px; margin-bottom: 4px; line-height: 1.5; }
+.no-comment { font-size: 12px; color: #9b9990; font-style: italic; }
+
+.empty { text-align: center; padding: 40px 20px; color: #9b9990; font-size: 13px; }
+.export-btn { font-size: 12px; padding: 6px 12px; }
+.hint { margin-top: 10px; font-size: 12px; color: #9b9990; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>会議投票ツール</h1>
+  <p class="subtitle">匿名アンケート — 議案ごとにポジティブ / ネガティブで投票</p>
+
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('admin')">議案管理</button>
+    <button class="tab" onclick="showTab('vote')">投票する</button>
+    <button class="tab" onclick="showTab('results')">結果一覧</button>
+  </div>
+
+  <!-- ADMIN TAB -->
+  <div id="tab-admin">
+    <div class="card">
+      <div class="section-label">新しい議案を追加</div>
+      <label>タイトル</label>
+      <input type="text" id="new-title" placeholder="例: 新製品ラインの導入検討" style="margin-bottom:10px">
+      <label>説明（任意）</label>
+      <textarea id="new-desc" placeholder="議案の詳細・背景など" style="min-height:60px;margin-bottom:12px"></textarea>
+      <button class="primary" onclick="addAgenda()">+ 議案を追加</button>
+    </div>
+
+    <div class="section-label">議案一覧</div>
+    <div class="agenda-list" id="agenda-admin-list">
+      <div class="empty">まだ議案がありません</div>
+    </div>
+    <p class="hint">※ 議案を追加したら「投票する」タブで投票できます</p>
+  </div>
+
+  <!-- VOTE TAB -->
+  <div id="tab-vote" style="display:none">
+    <div class="vote-cards" id="vote-cards-container">
+      <div class="empty">議案がありません。「議案管理」タブで追加してください。</div>
+    </div>
+    <p class="hint">※ 理由は任意です。各議案につき1票のみ投票できます。投票は匿名です。</p>
+  </div>
+
+  <!-- RESULTS TAB -->
+  <div id="tab-results" style="display:none">
+    <div class="results-header">
+      <h2>集計結果</h2>
+      <button class="export-btn" onclick="exportCSV()">CSV エクスポート ↓</button>
+    </div>
+    <div class="result-cards" id="result-cards-container">
+      <div class="empty">まだ投票がありません。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let agendas = [];
+let votes = {};
+let comments = {};
+let myVotes = {};
+let nextId = 1;
+
+function showTab(name) {
+  ['admin','vote','results'].forEach((t,i) => {
+    document.getElementById('tab-'+t).style.display = t === name ? '' : 'none';
+    document.querySelectorAll('.tab')[i].classList.toggle('active', t === name);
+  });
+  if (name === 'vote') renderVote();
+  if (name === 'results') renderResults();
+}
+
+function addAgenda() {
+  const title = document.getElementById('new-title').value.trim();
+  const desc = document.getElementById('new-desc').value.trim();
+  if (!title) { document.getElementById('new-title').focus(); return; }
+  const id = nextId++;
+  agendas.push({ id, title, desc });
+  votes[id] = { pos: 0, neg: 0 };
+  comments[id] = { pos: [], neg: [] };
+  document.getElementById('new-title').value = '';
+  document.getElementById('new-desc').value = '';
+  renderAdmin();
+}
+
+function removeAgenda(id) {
+  agendas = agendas.filter(a => a.id !== id);
+  delete votes[id]; delete comments[id]; delete myVotes[id];
+  renderAdmin();
+}
+
+function renderAdmin() {
+  const list = document.getElementById('agenda-admin-list');
+  if (agendas.length === 0) {
+    list.innerHTML = '<div class="empty">まだ議案がありません</div>'; return;
+  }
+  list.innerHTML = agendas.map((a, i) => `
+    <div class="agenda-item-admin">
+      <span class="num">${i+1}</span>
+      <div class="texts">
+        <div class="atitle">${esc(a.title)}</div>
+        ${a.desc ? `<div class="adesc">${esc(a.desc)}</div>` : ''}
+      </div>
+      <button class="danger" onclick="removeAgenda(${a.id})" style="font-size:12px;padding:4px 10px">削除</button>
+    </div>`).join('');
+}
+
+function renderVote() {
+  const c = document.getElementById('vote-cards-container');
+  if (agendas.length === 0) {
+    c.innerHTML = '<div class="empty">議案がありません。「議案管理」タブで追加してください。</div>'; return;
+  }
+  c.innerHTML = agendas.map((a, i) => {
+    const voted = myVotes[a.id];
+    const votedTag = voted ? `<span class="voted-tag ${voted==='pos'?'p':'n'}">${voted==='pos'?'賛成済':'反対済'}</span>` : '';
+    return `
+    <div class="vote-card">
+      <div class="vote-card-header">
+        <div class="tag">議案 ${i+1}${votedTag}</div>
+        <div class="card-title">${esc(a.title)}</div>
+        ${a.desc ? `<div class="card-desc">${esc(a.desc)}</div>` : ''}
+      </div>
+      <div class="reason-areas">
+        <div class="reason-box pos-box">
+          <div class="reason-label">
+            <svg width="10" height="10" viewBox="0 0 16 16"><path d="M8 2L14 14H2Z" fill="currentColor"/></svg>
+            ポジティブな理由
+          </div>
+          <textarea id="reason-pos-${a.id}" placeholder="賛成の理由を入力（任意）"></textarea>
+        </div>
+        <div class="reason-box neg-box">
+          <div class="reason-label">
+            <svg width="10" height="10" viewBox="0 0 16 16"><path d="M8 14L2 2H14Z" fill="currentColor"/></svg>
+            ネガティブな理由
+          </div>
+          <textarea id="reason-neg-${a.id}" placeholder="反対の理由を入力（任意）"></textarea>
+        </div>
+      </div>
+      <div class="vote-buttons">
+        <button class="vote-btn pos ${voted==='pos'?'voted-pos':''}" onclick="castVote(${a.id},'pos')">
+          <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 2L14 14H2Z" fill="currentColor"/></svg>
+          ポジティブで投票
+        </button>
+        <button class="vote-btn neg ${voted==='neg'?'voted-neg':''}" onclick="castVote(${a.id},'neg')">
+          <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 14L2 2H14Z" fill="currentColor"/></svg>
+          ネガティブで投票
+        </button>
+      </div>
+      ${voted ? `<div class="vote-done-msg">投票済み — 再クリックで取り消し・変更できます</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function castVote(id, type) {
+  const prev = myVotes[id];
+  const posText = (document.getElementById('reason-pos-'+id)||{}).value?.trim() || '';
+  const negText = (document.getElementById('reason-neg-'+id)||{}).value?.trim() || '';
+
+  if (prev) {
+    votes[id][prev]--;
+    const sessionKey = 'session_'+id+'_'+prev;
+    const idx = window[sessionKey];
+    if (idx !== undefined) { comments[id][prev].splice(idx, 1); delete window[sessionKey]; }
+  }
+
+  if (prev === type) {
+    delete myVotes[id];
+  } else {
+    votes[id][type]++;
+    myVotes[id] = type;
+    const reasonText = type === 'pos' ? posText : negText;
+    if (reasonText) {
+      const arr = comments[id][type];
+      const idx = arr.length;
+      arr.push(reasonText);
+      window['session_'+id+'_'+type] = idx;
+    }
+  }
+  renderVote();
+}
+
+function renderResults() {
+  const c = document.getElementById('result-cards-container');
+  if (agendas.length === 0) {
+    c.innerHTML = '<div class="empty">まだ投票がありません。</div>'; return;
+  }
+  c.innerHTML = agendas.map((a, i) => {
+    const v = votes[a.id] || { pos:0, neg:0 };
+    const total = v.pos + v.neg;
+    const posW = total ? Math.round(v.pos/total*100) : 0;
+    const negW = total ? Math.round(v.neg/total*100) : 0;
+    const cm = comments[a.id] || { pos:[], neg:[] };
+    const posComments = cm.pos.filter(Boolean);
+    const negComments = cm.neg.filter(Boolean);
+    const hasComments = posComments.length > 0 || negComments.length > 0;
+    return `
+    <div class="result-card">
+      <div class="rtag">議案 ${i+1}</div>
+      <div class="rtitle">${esc(a.title)}</div>
+      <div class="bar-row">
+        <span class="bar-label">ポジティブ</span>
+        <div class="bar-track"><div class="bar-fill-pos" style="width:${posW}%"></div></div>
+        <span class="bar-count">${v.pos}</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">ネガティブ</span>
+        <div class="bar-track"><div class="bar-fill-neg" style="width:${negW}%"></div></div>
+        <span class="bar-count">${v.neg}</span>
+      </div>
+      <div class="total-label">合計 ${total} 票${total ? ' ／ 賛成 '+posW+'% / 反対 '+negW+'%' : ''}</div>
+      ${hasComments ? `
+      <div class="comments-grid">
+        <div class="comments-col pos-col">
+          <div class="col-header">
+            <svg width="10" height="10" viewBox="0 0 16 16"><path d="M8 2L14 14H2Z" fill="currentColor"/></svg>
+            ポジティブの理由 (${posComments.length})
+          </div>
+          ${posComments.length ? posComments.map(c => `<div class="comment-item">${esc(c)}</div>`).join('') : '<div class="no-comment">なし</div>'}
+        </div>
+        <div class="comments-col neg-col">
+          <div class="col-header">
+            <svg width="10" height="10" viewBox="0 0 16 16"><path d="M8 14L2 2H14Z" fill="currentColor"/></svg>
+            ネガティブの理由 (${negComments.length})
+          </div>
+          ${negComments.length ? negComments.map(c => `<div class="comment-item">${esc(c)}</div>`).join('') : '<div class="no-comment">なし</div>'}
+        </div>
+      </div>` : `<div style="font-size:12px;color:#9b9990">理由のコメントはまだありません</div>`}
+    </div>`;
+  }).join('');
+}
+
+function exportCSV() {
+  if (agendas.length === 0) { alert('議案がありません'); return; }
+  const rows = [['番号','タイトル','説明','ポジティブ票','ネガティブ票','合計票','賛成率(%)','ポジティブの理由','ネガティブの理由']];
+  agendas.forEach((a, i) => {
+    const v = votes[a.id] || { pos:0, neg:0 };
+    const cm = comments[a.id] || { pos:[], neg:[] };
+    const total = v.pos + v.neg;
+    const rate = total ? Math.round(v.pos/total*100) : 0;
+    rows.push([i+1, a.title, a.desc||'', v.pos, v.neg, total, rate, cm.pos.filter(Boolean).join(' / '), cm.neg.filter(Boolean).join(' / ')]);
+  });
+  const csv = rows.map(r => r.map(cell => '"'+String(cell).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob = new Blob(['\uFEFF'+csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = '会議投票結果.csv';
+  a.click();
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
